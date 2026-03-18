@@ -1,72 +1,100 @@
 import streamlit as st
 
-# --- 1. INITIALISE SESSION STATE ---
+# --- 1. PAGE STYLING (The Book Look) ---
+st.set_page_config(page_title="The Grammar Detective", page_icon="🕵️‍♂️")
+
+st.markdown("""
+    <style>
+    .main {
+        background-color: #fdf5e6; /* Old Lace / Parchment color */
+    }
+    .stApp {
+        background-color: #fdf5e6;
+    }
+    h1, h2, h3, p, .stMarkdown {
+        font-family: 'Georgia', serif;
+        color: #2c241e;
+    }
+    .stInfo {
+        background-color: #fff9f0;
+        border: 1px solid #d4c4a8;
+        border-radius: 5px;
+        padding: 20px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_name_allowed=True)
+
+# --- 2. INITIALISE SESSION STATE ---
 if 'score' not in st.session_state:
     st.session_state.score = 0
 if 'current_round' not in st.session_state:
     st.session_state.current_round = 0
-if 'show_feedback' not in st.session_state:
-    st.session_state.show_feedback = False
-if 'last_result' not in st.session_state:
-    st.session_state.last_result = ""
+if 'phase' not in st.session_state:
+    st.session_state.phase = "ASKING" # Two phases: ASKING and FEEDBACK
 
-# --- 2. DATA ---
+# --- 3. DATA ---
 data = [
     {"book": "The Great Gatsby", "error_excerpt": "In my younger and more vulnerable years my father give me some advice...", "error_word": "give", "correction": "gave"},
     {"book": "Pride and Prejudice", "error_excerpt": "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wives.", "error_word": "wives", "correction": "wife"},
     {"book": "Moby-Dick", "error_excerpt": "Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, I thought I will sail about a little.", "error_word": "will", "correction": "would"}
 ]
 
-st.title("📚 The Grammar Detective")
+st.title("📜 The Grammar Detective")
 
-# --- 3. GAME LOGIC ---
 if st.session_state.current_round < len(data):
     item = data[st.session_state.current_round]
     
-    st.info(f"**From: {item['book']}**\n\n\"{item['error_excerpt']}\"")
+    # Book Display
+    st.markdown(f"### *{item['book']}*")
+    st.info(f"\"{item['error_excerpt']}\"")
 
-    # --- PHASE 1: SHOW THE INPUT FORM ---
-    if not st.session_state.show_feedback:
-        with st.form(key=f"input_form_{st.session_state.current_round}"):
-            user_guess = st.text_input("Which word is the mistake? (Press Enter to submit)").strip().lower()
-            submit = st.form_submit_button("Check Answer")
+    # --- THE MAGIC FORM ---
+    # This form handles the Enter key for BOTH submission and progression
+    with st.form(key=f"game_form_{st.session_state.current_round}", clear_on_submit=(st.session_state.phase == "FEEDBACK")):
+        
+        if st.session_state.phase == "ASKING":
+            user_guess = st.text_input("Which word is the mistake?").strip().lower()
+            btn_label = "Check Answer"
+        else:
+            st.write("✨ Press **Enter** again to continue to the next round...")
+            btn_label = "Next Round ➡️"
 
-            if submit:
+        submit = st.form_submit_button(btn_label)
+
+        if submit:
+            if st.session_state.phase == "ASKING":
+                # Check Answer
                 if user_guess == item['error_word'].lower():
                     st.session_state.score += 1
-                    st.session_state.last_result = "correct"
+                    st.session_state.last_msg = ("success", f"✨ **Correct!** It should be '{item['correction']}'.")
                 else:
-                    st.session_state.last_result = "incorrect"
+                    st.session_state.last_msg = ("error", f"❌ **Wrong.** The mistake was '{item['error_word']}'.")
                 
-                st.session_state.show_feedback = True
+                st.session_state.phase = "FEEDBACK"
                 st.rerun()
-
-    # --- PHASE 2: SHOW FEEDBACK & WAIT FOR ENTER TO CONTINUE ---
-    else:
-        if st.session_state.last_result == "correct":
-            st.success(f"✨ **Correct!** The mistake was '{item['error_word']}'. It should be '{item['correction']}'.")
-        else:
-            st.error(f"❌ **Wrong.** The mistake was '{item['error_word']}'. It should be '{item['correction']}'.")
-        
-        # This second form allows the 'Enter' key to trigger the 'Next' action
-        with st.form(key=f"next_form_{st.session_state.current_round}"):
-            st.write("Press **Enter** or click below to continue...")
-            next_button = st.form_submit_button("Next Round ➡️")
-            
-            if next_button:
+            else:
+                # Move to next round
                 st.session_state.current_round += 1
-                st.session_state.show_feedback = False
+                st.session_state.phase = "ASKING"
                 st.rerun()
 
-# --- 4. GAME OVER ---
+    # Display feedback outside the form for better visibility
+    if st.session_state.phase == "FEEDBACK":
+        msg_type, msg_text = st.session_state.last_msg
+        if msg_type == "success": st.success(msg_text)
+        else: st.error(msg_text)
+
 else:
     st.balloons()
-    st.header("Game Over! 🎉")
-    st.metric("Final Score", f"{st.session_state.score} / {len(data)}")
-    if st.button("Play Again"):
+    st.header("The End 🖋️")
+    st.write(f"Your final score: **{st.session_state.score} / {len(data)}**")
+    if st.button("Restart Journey"):
         st.session_state.score = 0
         st.session_state.current_round = 0
-        st.session_state.show_feedback = False
+        st.session_state.phase = "ASKING"
         st.rerun()
 
-st.sidebar.metric("Total Score", st.session_state.score)
+# Sidebar
+st.sidebar.markdown("### 🖋️ Ledger")
+st.sidebar.metric("Points Earned", st.session_state.score)
