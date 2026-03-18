@@ -5,25 +5,20 @@ st.set_page_config(page_title="The Grammar Detective", page_icon="🕵️‍♂�
 
 st.markdown("""
     <style>
-    .main {
-        background-color: #fdf5e6; /* Old Lace / Parchment color */
-    }
     .stApp {
         background-color: #fdf5e6;
     }
-    h1, h2, h3, p, .stMarkdown {
-        font-family: 'Georgia', serif;
-        color: #2c241e;
+    h1, h2, h3, p, span, label {
+        font-family: 'Georgia', serif !important;
+        color: #2c241e !important;
     }
-    .stInfo {
-        background-color: #fff9f0;
-        border: 1px solid #d4c4a8;
-        border-radius: 5px;
-        padding: 20px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    .stAlert {
+        background-color: #fff9f0 !important;
+        border: 1px solid #d4c4a8 !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
     }
     </style>
-    """, unsafe_allow_name_allowed=True)
+    """, unsafe_allow_html=True) # Fixed the argument here!
 
 # --- 2. INITIALISE SESSION STATE ---
 if 'score' not in st.session_state:
@@ -31,7 +26,7 @@ if 'score' not in st.session_state:
 if 'current_round' not in st.session_state:
     st.session_state.current_round = 0
 if 'phase' not in st.session_state:
-    st.session_state.phase = "ASKING" # Two phases: ASKING and FEEDBACK
+    st.session_state.phase = "ASKING"
 
 # --- 3. DATA ---
 data = [
@@ -45,26 +40,23 @@ st.title("📜 The Grammar Detective")
 if st.session_state.current_round < len(data):
     item = data[st.session_state.current_round]
     
-    # Book Display
     st.markdown(f"### *{item['book']}*")
     st.info(f"\"{item['error_excerpt']}\"")
 
-    # --- THE MAGIC FORM ---
-    # This form handles the Enter key for BOTH submission and progression
-    with st.form(key=f"game_form_{st.session_state.current_round}", clear_on_submit=(st.session_state.phase == "FEEDBACK")):
+    # The Form handles the Enter key logic
+    with st.form(key=f"game_form_{st.session_state.current_round}", clear_on_submit=True):
         
         if st.session_state.phase == "ASKING":
             user_guess = st.text_input("Which word is the mistake?").strip().lower()
             btn_label = "Check Answer"
         else:
-            st.write("✨ Press **Enter** again to continue to the next round...")
+            st.write("✨ Press **Enter** again to continue...")
             btn_label = "Next Round ➡️"
 
         submit = st.form_submit_button(btn_label)
 
         if submit:
             if st.session_state.phase == "ASKING":
-                # Check Answer
                 if user_guess == item['error_word'].lower():
                     st.session_state.score += 1
                     st.session_state.last_msg = ("success", f"✨ **Correct!** It should be '{item['correction']}'.")
@@ -74,12 +66,10 @@ if st.session_state.current_round < len(data):
                 st.session_state.phase = "FEEDBACK"
                 st.rerun()
             else:
-                # Move to next round
                 st.session_state.current_round += 1
                 st.session_state.phase = "ASKING"
                 st.rerun()
 
-    # Display feedback outside the form for better visibility
     if st.session_state.phase == "FEEDBACK":
         msg_type, msg_text = st.session_state.last_msg
         if msg_type == "success": st.success(msg_text)
@@ -95,6 +85,5 @@ else:
         st.session_state.phase = "ASKING"
         st.rerun()
 
-# Sidebar
 st.sidebar.markdown("### 🖋️ Ledger")
 st.sidebar.metric("Points Earned", st.session_state.score)
