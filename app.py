@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import random
-import re
 
 # --- 1. PAGE STYLING ---
 st.set_page_config(page_title="The Grammar Detective", page_icon="🕵️‍♂️")
@@ -16,36 +15,40 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. AUTOMATED EXCERPT FETCHING ---
-@st.cache_data(ttl=3600) # Cache for 1 hour to save bandwidth
+# --- 2. AUTOMATED FETCHING (WITH FIXES) ---
+# Project Gutenberg blocks requests without a browser 'User-Agent'
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+@st.cache_data(ttl=3600)
 def get_random_book():
-    """Fetches a random popular book from Gutendex API."""
     try:
-        # Get a random page of popular books (1-10)
-        page = random.randint(1, 10)
-        response = requests.get(f"https://gutendex.com{page}")
-        books = response.json()['results']
-        return random.choice(books)
+        # Gutendex usually allows API calls without strict blocking
+        page = random.randint(1, 20)
+        response = requests.get(f"https://gutendex.com{page}", timeout=10)
+        books = response.json().get('results', [])
+        return random.choice(books) if books else None
     except:
         return None
 
 def get_excerpt(book_url):
-    """Downloads book text and finds a suitable paragraph."""
     try:
-        text = requests.get(book_url).text
-        # Clean Gutenberg headers/footers roughly
+        # Crucial: Use HEADERS to bypass the "Internal Error" block
+        response = requests.get(book_url, headers=HEADERS, timeout=15)
+        text = response.text
+        
         start = text.find("*** START")
         end = text.find("*** END")
         clean_text = text[start:end] if start != -1 else text
         
-        # Split into paragraphs and find one between 150-350 characters
-        paras = [p.strip() for p in clean_text.split('\n\n') if 150 < len(p) < 350]
-        return random.choice(paras)
-    except:
-        return "The detective found no clues in this book."
+        # Split into paragraphs and find one of suitable length
+        paras = [p.strip() for p in clean_text.split('\n\n') if 150 < len(p) < 400]
+        return random.choice(paras) if paras else None
+    except Exception as e:
+        return None
 
 def inject_mistake(text):
-    """Automatically swaps a common word for a grammatical error."""
     swaps = {" was ": " were ", " is ": " are ", " has ": " have ", " their ": " there ", " saw ": " seen "}
     found = [word for word in swaps if word in text.lower()]
     if not found: return None, None, None
@@ -53,7 +56,6 @@ def inject_mistake(text):
     target = random.choice(found)
     error = swaps[target].strip()
     original = target.strip()
-    # Replace only the first occurrence to keep it fair
     error_text = text.replace(target, swaps[target], 1)
     return error_text, original, error
 
@@ -64,21 +66,28 @@ if 'round_data' not in st.session_state: st.session_state.round_data = None
 
 # --- 4. GAME FLOW ---
 def load_new_round():
-    with st.spinner("Sourcing a new mystery..."):
+    attempts = 0
+    while attempts < 5:
         book = get_random_book()
         if book:
             txt_url = book['formats'].get('text/plain; charset=utf-8')
             if txt_url:
                 excerpt = get_excerpt(txt_url)
-                err_txt, orig, err = inject_mistake(excerpt)
-                if err_txt:
-                    st.session_state.round_data = {
-                        "book": book['title'], "text": err_txt, 
-                        "orig": orig, "err": err
-                    }
-                    return
-    # Fallback if no mistake could be injected
-    st.session_state.round_data = {"book": "Internal Error", "text": "Something went wrong. Press Enter to try again.", "orig": "err", "err": "err"}
+                if excerpt:
+                    err_txt, orig, err = inject_mistake(excerpt)
+                    if err_txt:
+                        st.session_state.round_data = {
+                            "book": book['title'], "text": err_txt, 
+                            "orig": orig, "err": err
+                        }
+                        return
+        attempts += 1
+    # Hardcoded fallback if the internet fails entirely
+    st.session_state.round_data = {
+        "book": "The Great Gatsby", 
+        "text": "In my younger and more vulnerable years my father give me some advice...",
+        "orig": "gave", "err": "give"
+    }
 
 if not st.session_state.round_data:
     load_new_round()
@@ -89,7 +98,6 @@ data = st.session_state.round_data
 st.markdown(f"### *{data['book']}*")
 st.info(f"\"{data['text']}\"")
 
-# Form logic for Double-Enter
 if st.session_state.phase == "ASKING":
     with st.form(key="ask_form", clear_on_submit=True):
         guess = st.text_input("Which word is the mistake?").strip().lower()
