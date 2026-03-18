@@ -5,20 +5,38 @@ st.set_page_config(page_title="The Grammar Detective", page_icon="🕵️‍♂�
 
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #fdf5e6;
+    /* Main Background */
+    .stApp, .stSidebar {
+        background-color: #fdf5e6 !important;
     }
-    h1, h2, h3, p, span, label {
+    
+    /* Force all text to be Dark Brown/Black */
+    h1, h2, h3, p, span, label, .stMarkdown, [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
         font-family: 'Georgia', serif !important;
         color: #2c241e !important;
     }
+
+    /* Style the Sidebar specifically */
+    section[data-testid="stSidebar"] .stMarkdown, section[data-testid="stSidebar"] label {
+        color: #2c241e !important;
+    }
+
+    /* Style Buttons to be visible */
+    .stButton>button, .stFormSubmitButton>button {
+        background-color: #e6dcc8 !important;
+        color: #2c241e !important;
+        border: 1px solid #d4c4a8 !important;
+        border-radius: 4px;
+    }
+
+    /* Keep Info box looking like a page */
     .stAlert {
         background-color: #fff9f0 !important;
         border: 1px solid #d4c4a8 !important;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
     }
     </style>
-    """, unsafe_allow_html=True) # Fixed the argument here!
+    """, unsafe_allow_html=True)
 
 # --- 2. INITIALISE SESSION STATE ---
 if 'score' not in st.session_state:
@@ -43,7 +61,6 @@ if st.session_state.current_round < len(data):
     st.markdown(f"### *{item['book']}*")
     st.info(f"\"{item['error_excerpt']}\"")
 
-    # The Form handles the Enter key logic
     with st.form(key=f"game_form_{st.session_state.current_round}", clear_on_submit=True):
         
         if st.session_state.phase == "ASKING":
@@ -85,5 +102,6 @@ else:
         st.session_state.phase = "ASKING"
         st.rerun()
 
+# Sidebar
 st.sidebar.markdown("### 🖋️ Ledger")
 st.sidebar.metric("Points Earned", st.session_state.score)
