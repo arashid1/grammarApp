@@ -2,14 +2,38 @@ import streamlit as st
 
 # --- 1. PAGE STYLING ---
 st.set_page_config(page_title="The Grammar Detective", page_icon="🕵️‍♂️")
+
 st.markdown("""
     <style>
-    .stApp, [data-testid="stSidebar"] { background-color: #fdf5e6 !important; }
-    h1, h2, h3, p, span, label, .stMarkdown, [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
-        font-family: 'Georgia', serif !important; color: #2c241e !important;
+    /* Main Background & Sidebar */
+    .stApp, [data-testid="stSidebar"] { 
+        background-color: #fdf5e6 !important; 
     }
-    button { background-color: #e6dcc8 !important; color: #2c241e !important; border: 1px solid #d4c4a8 !important; width: 100%; }
-    .stAlert { background-color: #fff9f0 !important; border: 1px solid #d4c4a8 !important; }
+    
+    /* Apply Font to text BUT EXCLUDE Icons */
+    h1, h2, h3, p, span, label, .stMarkdown, [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
+        font-family: 'Georgia', serif !important; 
+        color: #2c241e !important;
+    }
+
+    /* FIX: Stop icons from turning into words like 'keyboard_double' */
+    .st-emotion-cache-1dfm2sy, i, .material-icons, [data-testid="stIcon"] {
+        font-family: 'Material Icons' !important;
+    }
+
+    /* Button Styling */
+    button { 
+        background-color: #e6dcc8 !important; 
+        color: #2c241e !important; 
+        border: 1px solid #d4c4a8 !important; 
+        width: 100%; 
+    }
+
+    /* Info Box parchment look */
+    .stAlert { 
+        background-color: #fff9f0 !important; 
+        border: 1px solid #d4c4a8 !important; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,14 +69,12 @@ if st.session_state.current_round < len(data):
                 st.session_state.phase = "FEEDBACK"
                 st.rerun()
 
-    # --- PHASE 2: FEEDBACK (Catching the second Enter) ---
+    # --- PHASE 2: FEEDBACK ---
     else:
         f_type, f_msg = st.session_state.feedback
         if f_type == "success": st.success(f_msg)
         else: st.error(f_msg)
         
-        # We use a second form here. Because it's the ONLY input on screen, 
-        # hitting Enter immediately triggers the "Next Round" button.
         with st.form(key=f"next_{st.session_state.current_round}"):
             st.write("✨ Press **Enter** to continue...")
             if st.form_submit_button("Next Round ➡️"):
